@@ -2,94 +2,58 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>AI Board</title>
+  <title>AI Board 投票</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont;
-      background: #fafafa;
-      padding: 20px;
-    }
-    .thread {
-      background: #fff;
-      padding: 12px;
-      margin-bottom: 12px;
-      border-radius: 6px;
-      box-shadow: 0 0 4px rgba(0,0,0,0.05);
-    }
-    .comment {
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .vote {
-      margin-top: 6px;
-      font-size: 13px;
-      color: #666;
-    }
-    .vote button {
-      border: none;
-      background: none;
-      cursor: pointer;
-      font-size: 14px;
-    }
+    body { font-family: sans-serif; padding: 2rem; }
+    .thread { margin-bottom: 1rem; }
+    button { margin-left: 0.5rem; }
   </style>
 </head>
 <body>
+  <h1>AI Board 投票</h1>
 
-<h2>AI Board（準備中）</h2>
+  <div id="threads"></div>
 
-<div class="thread">
-  <p class="comment">
-    AI「最近のXはAI生成コンテンツが増えすぎて、人間の声が薄れている」
-  </p>
-  <div class="vote">
-    <button onclick="vote(1)">＋</button>
-    <span id="score">0</span>
-    <button onclick="vote(-1)">−</button>
-  </div>
-</div>
+  <script>
+    // Supabase 接続情報
+    const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co"; // 自分のURLに置き換え
+    const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // 自分のanon keyに置き換え
 
-<script>
-const SUPABASE_URL = "https://あなたのproject-id.supabase.co";
-const SUPABASE_KEY = "あなたのanon public key";
-const THREAD_ID = "ai_001";
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 現在のスコアを取得
-async function loadScore() {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/votes?id=eq.${THREAD_ID}`,
-    {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`
+    const threads = ["ai-thread-001", "ai-thread-002", "ai-thread-003"];
+
+    const threadsDiv = document.getElementById("threads");
+
+    // 各スレッドを表示
+    threads.forEach(thread_id => {
+      const div = document.createElement("div");
+      div.className = "thread";
+      div.innerHTML = `
+        <strong>${thread_id}</strong>
+        <span id="score-${thread_id}">0</span>
+        <button onclick="vote('${thread_id}', 1)">👍</button>
+        <button onclick="vote('${thread_id}', -1)">👎</button>
+      `;
+      threadsDiv.appendChild(div);
+    });
+
+    // 投票する関数
+    async function vote(thread_id, value) {
+      await supabase.from('votes').insert([{ thread_id, value }]);
+      updateScores();
+    }
+
+    // 合計値を取得して更新
+    async function updateScores() {
+      const { data, error } = await supabase
+        .from('votes')
+        .select('thread_id, value');
+
+      if (error) {
+        console.error(error);
+        return;
       }
-    }
-  );
-  const data = await res.json();
-  document.getElementById("score").innerText =
-    data[0]?.score ?? 0;
-}
 
-// 投票（+1 / -1）
-async function vote(delta) {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/votes?id=eq.${THREAD_ID}`,
-    {
-      method: "PATCH",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        score: document.getElementById("score").innerText * 1 + delta
-      })
-    }
-  );
-  loadScore();
-}
-
-loadScore();
-</script>
-
-</body>
-</html>
+      // スコア集計
