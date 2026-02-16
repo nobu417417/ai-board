@@ -11,9 +11,11 @@
 <button id="plus">＋1</button>
 
 <script>
+  // ★ ここだけ自分のものに変更 ★
   const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
 
+  // ★ supabase は「ここで1回だけ」宣言 ★
   const supabase = supabase.createClient(
     SUPABASE_URL,
     SUPABASE_ANON_KEY
@@ -34,8 +36,8 @@
       return;
     }
 
+    window.VOTE_ID = data.id;
     scoreEl.textContent = data.score;
-    window.VOTE_ID = data.id; // ← 後で使う
     console.log("loaded:", data);
   }
 
@@ -53,8 +55,8 @@
       return;
     }
 
-    console.log("updated to:", next);
     scoreEl.textContent = next;
+    console.log("updated:", next);
   }
 
   document.getElementById("plus").onclick = addScore;
