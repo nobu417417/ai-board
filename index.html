@@ -1,50 +1,66 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>Vote App</title>
+  <meta charset="UTF-8">
+  <title>Vote Test</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <h1>SCORE: <span id="score">0</span></h1>
-  <button id="voteBtn">VOTE</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
+<h1>SCORE: <span id="score">---</span></h1>
+<button id="plus">＋1</button>
 
-    const supabase = supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY
-    );
+<script>
+  const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
 
-    const scoreEl = document.getElementById("score");
-    const voteBtn = document.getElementById("voteBtn");
+  const supabase = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
 
-    async function loadScore() {
-      const { data, error } = await supabase
-        .from("votes")
-        .select("score")
-        .eq("id", 1)
-        .single();
+  const THREAD_ID = "main-thread";
+  const scoreEl = document.getElementById("score");
 
-      if (error) {
-        console.error(error);
-        return;
-      }
-      scoreEl.textContent = data.score;
+  async function loadScore() {
+    const { data, error } = await supabase
+      .from("votes")
+      .select("id, score")
+      .eq("thread_id", THREAD_ID)
+      .single();
+
+    if (error) {
+      console.error("load error:", error);
+      return;
     }
 
-    voteBtn.addEventListener("click", async () => {
-      const { error } = await supabase.rpc("increment_score");
-      if (error) {
-        console.error(error);
-        return;
-      }
-      loadScore();
-    });
+    scoreEl.textContent = data.score;
+    window.VOTE_ID = data.id; // ← 後で使う
+    console.log("loaded:", data);
+  }
 
-    loadScore();
-  </script>
+  async function addScore() {
+    const current = Number(scoreEl.textContent);
+    const next = current + 1;
+
+    const { error } = await supabase
+      .from("votes")
+      .update({ score: next })
+      .eq("id", window.VOTE_ID);
+
+    if (error) {
+      console.error("update error:", error);
+      return;
+    }
+
+    console.log("updated to:", next);
+    scoreEl.textContent = next;
+  }
+
+  document.getElementById("plus").onclick = addScore;
+
+  loadScore();
+</script>
+
 </body>
 </html>
