@@ -1,68 +1,50 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <title>Vote Test</title>
-</head>
-<body>
-
-  <h1>Vote Test</h1>
-  <p>現在の投票数: <span id="countDisplay">読み込み中...</span></p>
-  <button id="voteBtn">投票する</button>
-
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-  <script>
-    const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
-
-    // グローバルな supabase オブジェクトから client を作成
+<script>
+    // ...（URLやKEYの初期化部分はそのまま）...
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const threadId = "main-thread";
 
-    // 画面を開いた時に現在の数を表示する関数
-    async function loadCount() {
-      const { data } = await supabaseClient
-        .from("votes")
-        .select("count")
-        .eq("thread_id", threadId)
-        .single();
-      if (data) document.getElementById("countDisplay").innerText = data.count;
-      else document.getElementById("countDisplay").innerText = "0";
+    // 最新の数値を画面に表示する関数
+    async function updateDisplay() {
+        const { data } = await supabaseClient
+            .from("votes")
+            .select("count")
+            .eq("thread_id", threadId)
+            .single();
+        if (data) {
+            // もし画面に数値を出す場所（例: <span id="num"></span>）があれば、そこに表示
+            const display = document.getElementById("voteCountDisplay");
+            if (display) display.innerText = data.count;
+        }
     }
 
-    // 読み込み時に実行
-    loadCount();
-
     document.getElementById("voteBtn").addEventListener("click", async () => {
-      console.log("ボタン押された");
-      
-      // ボタンを連打できないように無効化
-      const btn = document.getElementById("voteBtn");
-      btn.disabled = true;
+        const btn = document.getElementById("voteBtn");
+        btn.disabled = true; // 連打防止
 
-      // ① 既存行チェック
-      const { data, error } = await supabaseClient
-        .from("votes")
-        .select("*")
-        .eq("thread_id", threadId)
-        .single();
+        // 1. 現在のカウントを取得
+        let { data } = await supabaseClient
+            .from("votes")
+            .select("*")
+            .eq("thread_id", threadId)
+            .single();
 
-      // ② 行が無ければ作成 (RPCを使わないシンプルな方法)
-      if (error && error.code === "PGRST116") {
-        await supabaseClient.from("votes").insert({ thread_id: threadId, count: 1 });
-      } else if (data) {
-        // ③ あれば +1
-        await supabaseClient
-          .from("votes")
-          .update({ count: data.count + 1 })
-          .eq("thread_id", threadId);
-      }
+        if (!data) {
+            // データがなければ作る
+            await supabaseClient.from("votes").insert({ thread_id: threadId, count: 1 });
+        } else {
+            // データがあれば +1
+            const newCount = (data.count || 0) + 1;
+            await supabaseClient
+                .from("votes")
+                .update({ count: newCount })
+                .eq("thread_id", threadId);
+        }
 
-      await loadCount(); // 最新数値を反映
-      btn.disabled = false;
-      alert("投票完了！");
+        alert("投票しました！");
+        await updateDisplay(); // 画面の数字を更新
+        btn.disabled = false;
     });
-  </script>
-</body>
-</html>
+
+    // ページを開いた時にも数字を表示
+    updateDisplay();
+</script>
