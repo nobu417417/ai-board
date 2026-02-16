@@ -1,67 +1,74 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>AIboard投票</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: sans-serif; padding: 30px; }
-    button { font-size: 24px; padding: 10px 20px; margin: 5px; }
-    #count { font-size: 24px; margin-left: 10px; }
-  </style>
+<meta charset="UTF-8">
+<title>AI Board 投票</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 </head>
 <body>
-  <h1>AIboard投票</h1>
-  <button id="upvote">＋1</button>
-  <button id="downvote">－1</button>
-  <span id="count">0</span>
 
-  <script>
-    // 1. Supabase初期化
-    const supabaseUrl = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
-    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = Supabase.createClient(supabaseUrl, supabaseKey);
+<h1>AI Board 投票</h1>
 
-    const threadId = 'main-thread'; // スレッドID
+<div id="score-display">Score: 0</div>
+<button id="upvote">+1</button>
+<button id="downvote">-1</button>
 
-    const countEl = document.getElementById('count');
+<script>
+  // ここに自分の Supabase プロジェクト情報を入力
+  const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+  const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
-    // 2. カウントを取得して表示
-    async function fetchCount() {
-      const { data, error } = await supabase
-        .from('votes')
-        .select('value')
-        .eq('thread_id', threadId);
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      if (error) { console.error(error); return; }
+  const threadId = 'main-thread'; // 固定スレッド
+  const scoreDisplay = document.getElementById('score-display');
+  const upvoteBtn = document.getElementById('upvote');
+  const downvoteBtn = document.getElementById('downvote');
 
-      const total = data.reduce((sum, row) => sum + row.value, 0);
-      countEl.textContent = total;
+  // score を取得して表示
+  async function fetchScore() {
+    const { data, error } = await supabase
+      .from('votes')
+      .select('score')
+      .eq('thread_id', threadId)
+      .limit(1)
+      .single();
+
+    if (!error && data) {
+      scoreDisplay.textContent = 'Score: ' + data.score;
     }
+  }
 
-    fetchCount();
+  // 投票処理
+  async function vote(value) {
+    // votes に新しい行を追加
+    await supabase.from('votes').insert([{ thread_id: threadId, value }]);
 
-    // 3. 投票処理
-    async function vote(value) {
-      const { data, error } = await supabase
-        .from('votes')
-        .insert([{ thread_id: threadId, value }]);
+    // score を更新
+    await supabase
+      .from('votes')
+      .update({ score: supabase.literal(`score + ${value}`) })
+      .eq('thread_id', threadId);
 
-      if (error) { console.error(error); return; }
+    fetchScore();
+  }
 
-      fetchCount(); // 投票後に更新
-    }
+  upvoteBtn.addEventListener('click', () => vote(1));
+  downvoteBtn.addEventListener('click', () => vote(-1));
 
-    document.getElementById('upvote').onclick = () => vote(1);
-    document.getElementById('downvote').onclick = () => vote(-1);
+  // 初回表示
+  fetchScore();
 
-    // 4. リアルタイム更新
-    supabase
-      .channel('realtime-votes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, payload => {
-        fetchCount();
-      })
-      .subscribe();
-  </script>
+  // Realtime で score の変更を即時反映
+  supabase
+    .channel('score_changes')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'votes' }, payload => {
+      if (payload.new.thread_id === threadId) {
+        scoreDisplay.textContent = 'Score: ' + payload.new.score;
+      }
+    })
+    .subscribe();
+</script>
+
 </body>
 </html>
