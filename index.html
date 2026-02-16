@@ -3,56 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>投票掲示板テスト</title>
+    <title>みんなの掲示板</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #fff5f7; }
-        .vote-card { background: white; padding: 20px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid #ffb6c1; }
-        h1 { color: #ff69b4; font-size: 1.2rem; }
-        .count-display { font-size: 2rem; font-weight: bold; color: #333; margin: 10px 0; }
-        button { background-color: #ff69b4; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 1rem; cursor: pointer; transition: 0.3s; }
-        button:hover { background-color: #ff1493; }
-        button:disabled { background-color: #ccc; }
+        /* 老若男女に優しい清潔感のあるデザイン */
+        :root {
+            --plus-color: #ff6b81;
+            --minus-color: #747d8c;
+            --bg-color: #f1f2f6;
+        }
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; color: #2f3542; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; width: 90%; max-width: 400px; }
+        h1 { font-size: 1.1rem; margin-bottom: 20px; color: #57606f; }
+        
+        .score-area { font-size: 3.5rem; font-weight: bold; margin: 15px 0; color: #2f3542; }
+        
+        .button-group { display: flex; gap: 15px; justify-content: center; }
+        button { flex: 1; border: none; padding: 15px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: transform 0.1s, opacity 0.2s; color: white; }
+        button:active { transform: scale(0.95); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-plus { background-color: var(--plus-color); box-shadow: 0 4px 0 #e44d61; }
+        .btn-minus { background-color: var(--minus-color); box-shadow: 0 4px 0 #57606f; }
     </style>
 </head>
 <body>
 
-    <div class="vote-card">
-        <h1>この投稿、どう思う？</h1>
-        <div class="count-display" id="voteCountDisplay">0</div>
-        <button id="voteBtn">プラス！</button>
+    <div class="container">
+        <h1>この話題、どう思う？</h1>
+        <div class="score-area" id="voteCountDisplay">0</div>
+        
+        <div class="button-group">
+            <button id="plusBtn" class="btn-plus">＋ プラス</button>
+            <button id="minusBtn" class="btn-minus">ー マイナス</button>
+        </div>
     </div>
 
     <script>
-        // --- 設定エリア（ここを書き換えてください） ---
-        const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
+        // --- 設定エリア（ここにあなたの情報を入れてください） ---
+        const SUPABASE_URL = "YOUR_SUPABASE_URL";
+        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
         const threadId = "main-thread";
-        // ------------------------------------------
+        // ----------------------------------------------------
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 最新の数値を表示する関数
         async function updateDisplay() {
             const { data, error } = await supabaseClient
                 .from("votes")
                 .select("score")
                 .eq("thread_id", threadId)
                 .single();
-            
-            if (data) {
-                document.getElementById("voteCountDisplay").innerText = data.score;
-            } else if (error) {
-                console.error("データ取得エラー:", error.message);
-            }
+            if (data) document.getElementById("voteCountDisplay").innerText = data.score;
         }
 
-        // 投票ボタンの処理
-        document.getElementById("voteBtn").addEventListener("click", async () => {
-            const btn = document.getElementById("voteBtn");
-            btn.disabled = true;
+        async function handleVote(change) {
+            const plusBtn = document.getElementById("plusBtn");
+            const minusBtn = document.getElementById("minusBtn");
+            plusBtn.disabled = true;
+            minusBtn.disabled = true;
 
-            // 1. 現在のスコアを取得
             let { data } = await supabaseClient
                 .from("votes")
                 .select("*")
@@ -60,23 +70,22 @@
                 .single();
 
             if (!data) {
-                // 2. データがなければ新規作成
-                await supabaseClient.from("votes").insert({ thread_id: threadId, score: 1 });
+                await supabaseClient.from("votes").insert({ thread_id: threadId, score: change });
             } else {
-                // 3. データがあれば +1 して更新
-                const newScore = (data.score || 0) + 1;
                 await supabaseClient
                     .from("votes")
-                    .update({ score: newScore })
+                    .update({ score: (data.score || 0) + change })
                     .eq("thread_id", threadId);
             }
 
-            alert("投票完了！");
             await updateDisplay();
-            btn.disabled = false;
-        });
+            plusBtn.disabled = false;
+            minusBtn.disabled = false;
+        }
 
-        // 初回読み込み
+        document.getElementById("plusBtn").addEventListener("click", () => handleVote(1));
+        document.getElementById("minusBtn").addEventListener("click", () => handleVote(-1));
+
         updateDisplay();
     </script>
 </body>
