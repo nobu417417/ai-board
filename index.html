@@ -1,105 +1,50 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>AI Board 投票</title>
-
-  <!-- Supabase v2 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 30px;
-    }
-    h1 {
-      margin-bottom: 20px;
-    }
-    #score {
-      font-size: 32px;
-      margin: 20px 0;
-    }
-    button {
-      font-size: 20px;
-      padding: 10px 20px;
-      margin-right: 10px;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Vote App</title>
 </head>
 <body>
+  <h1>SCORE: <span id="score">0</span></h1>
+  <button id="voteBtn">VOTE</button>
 
-<h1>AI Board 投票</h1>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
+    const SUPABASE_ANON_KEY = "ここに anon public を貼る";
 
-<div id="score">Score: 0</div>
+    const supabase = supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
 
-<button id="plus">＋</button>
-<button id="minus">－</button>
+    const scoreEl = document.getElementById("score");
+    const voteBtn = document.getElementById("voteBtn");
 
-<script>
-  /****************************
-   * Supabase 設定
-   ****************************/
-  const SUPABASE_URL = 'https://svoovxefpjcuwjpqryut.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I';
+    async function loadScore() {
+      const { data, error } = await supabase
+        .from("votes")
+        .select("score")
+        .eq("id", 1)
+        .single();
 
-  const supabase = supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
-
-  const THREAD_ID = 'main-thread';
-
-  const scoreEl = document.getElementById('score');
-  const plusBtn = document.getElementById('plus');
-  const minusBtn = document.getElementById('minus');
-
-  /****************************
-   * スコア取得
-   ****************************/
-  async function fetchScore() {
-    const { data, error } = await supabase
-      .from('votes')
-      .select('score')
-      .eq('thread_id', THREAD_ID)
-      .single();
-
-    if (error) {
-      console.error('fetchScore error:', error);
-      return;
+      if (error) {
+        console.error(error);
+        return;
+      }
+      scoreEl.textContent = data.score;
     }
 
-    scoreEl.textContent = 'Score: ' + data.score;
-  }
-
-  /****************************
-   * 投票（RPC）
-   ****************************/
-  async function vote(value) {
-    const { error } = await supabase.rpc('increment_score', {
-      p_thread_id: THREAD_ID,
-      p_value: value
+    voteBtn.addEventListener("click", async () => {
+      const { error } = await supabase.rpc("increment_score");
+      if (error) {
+        console.error(error);
+        return;
+      }
+      loadScore();
     });
 
-    if (error) {
-      console.error('vote error:', error);
-      return;
-    }
-
-    // 更新後に再取得
-    fetchScore();
-  }
-
-  /****************************
-   * イベント
-   ****************************/
-  plusBtn.addEventListener('click', () => vote(1));
-  minusBtn.addEventListener('click', () => vote(-1));
-
-  /****************************
-   * 初期表示
-   ****************************/
-  fetchScore();
-</script>
-
+    loadScore();
+  </script>
 </body>
 </html>
