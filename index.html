@@ -1,68 +1,81 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Vote Test</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<h1>SCORE: <span id="score">---</span></h1>
-<button id="plus">＋1</button>
+  <h1>Vote Test</h1>
+  <button id="voteBtn">投票する</button>
 
-<script>
-  // ★ ここだけ自分のものに変更 ★
-  const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
+  <!-- Supabase CDN（これ1回だけ） -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
-  // ★ supabase は「ここで1回だけ」宣言 ★
-  const supabase = supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+  <script>
+    // =========================
+    // Supabase 初期化
+    // =========================
+    const SUPABASE_URL = "https://svoovxefpjcuwjpqryut.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2b292eGVmcGpjdXdqcHFyeXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExNDQ3ODIsImV4cCI6MjA4NjcyMDc4Mn0.P0r32dM5e-_g7Fny1OKKUCPUre_rBOhFyiTLUnvya9I";
 
-  const THREAD_ID = "main-thread";
-  const scoreEl = document.getElementById("score");
+    const supabaseClient = supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
 
-  async function loadScore() {
-    const { data, error } = await supabase
-      .from("votes")
-      .select("id, score")
-      .eq("thread_id", THREAD_ID)
-      .single();
+    // =========================
+    // ボタン処理
+    // =========================
+    document.getElementById("voteBtn").addEventListener("click", async () => {
+      console.log("ボタン押された");
 
-    if (error) {
-      console.error("load error:", error);
-      return;
-    }
+      const threadId = "main-thread";
 
-    window.VOTE_ID = data.id;
-    scoreEl.textContent = data.score;
-    console.log("loaded:", data);
-  }
+      // ① 既存行チェック
+      const { data, error } = await supabaseClient
+        .from("votes")
+        .select("*")
+        .eq("thread_id", threadId)
+        .single();
 
-  async function addScore() {
-    const current = Number(scoreEl.textContent);
-    const next = current + 1;
+      if (error && error.code !== "PGRST116") {
+        console.error("select error:", error);
+        return;
+      }
 
-    const { error } = await supabase
-      .from("votes")
-      .update({ score: next })
-      .eq("id", window.VOTE_ID);
+      // ② 行が無ければ作成
+      if (!data) {
+        const { error: insertError } = await supabaseClient
+          .from("votes")
+          .insert({
+            thread_id: threadId,
+            count: 1
+          });
 
-    if (error) {
-      console.error("update error:", error);
-      return;
-    }
+        if (insertError) {
+          console.error("insert error:", insertError);
+          return;
+        }
 
-    scoreEl.textContent = next;
-    console.log("updated:", next);
-  }
+        alert("初回投票！");
+        return;
+      }
 
-  document.getElementById("plus").onclick = addScore;
+      // ③ あれば +1
+      const { error: updateError } = await supabaseClient
+        .from("votes")
+        .update({ count: data.count + 1 })
+        .eq("thread_id", threadId);
 
-  loadScore();
-</script>
+      if (updateError) {
+        console.error("update error:", updateError);
+        return;
+      }
+
+      alert("投票数：" + (data.count + 1));
+    });
+  </script>
 
 </body>
 </html>
