@@ -4,11 +4,15 @@
 <meta charset="UTF-8">
 <title>AI Board 投票</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+<style>
+  body { font-family: sans-serif; padding: 20px; }
+  #score-display { font-size: 24px; margin-bottom: 10px; }
+  button { font-size: 18px; margin-right: 10px; padding: 10px 20px; }
+</style>
 </head>
 <body>
 
 <h1>AI Board 投票</h1>
-
 <div id="score-display">Score: 0</div>
 <button id="upvote">+1</button>
 <button id="downvote">-1</button>
@@ -25,7 +29,9 @@
   const upvoteBtn = document.getElementById('upvote');
   const downvoteBtn = document.getElementById('downvote');
 
-  // score を取得して表示
+  // ----------------------------
+  // 現在のスコアを取得して表示
+  // ----------------------------
   async function fetchScore() {
     const { data, error } = await supabase
       .from('votes')
@@ -39,35 +45,60 @@
     }
   }
 
-  // 投票処理
+  // ----------------------------
+  // 投票処理 (+1 / -1)
+  // ----------------------------
   async function vote(value) {
-    // votes に新しい行を追加
-    await supabase.from('votes').insert([{ thread_id: threadId, value }]);
-
-    // score を更新
-    await supabase
+    // 1. 現在の score を取得
+    const { data, error } = await supabase
       .from('votes')
-      .update({ score: supabase.literal(`score + ${value}`) })
+      .select('score')
+      .eq('thread_id', threadId)
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error('Score取得エラー', error);
+      return;
+    }
+
+    const newScore = (data.score || 0) + value;
+
+    // 2. score を更新
+    const { error: updateError } = await supabase
+      .from('votes')
+      .update({ score: newScore })
       .eq('thread_id', threadId);
 
-    fetchScore();
+    if (updateError) console.error('Score更新エラー', updateError);
+
+    // 3. 画面更新
+    scoreDisplay.textContent = 'Score: ' + newScore;
   }
 
+  // ボタンイベント
   upvoteBtn.addEventListener('click', () => vote(1));
   downvoteBtn.addEventListener('click', () => vote(-1));
 
   // 初回表示
   fetchScore();
 
-  // Realtime で score の変更を即時反映
+  // ----------------------------
+  // Realtime でスコアを即時反映
+  // ----------------------------
   supabase
     .channel('score_changes')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'votes' }, payload => {
-      if (payload.new.thread_id === threadId) {
-        scoreDisplay.textContent = 'Score: ' + payload.new.score;
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'votes' },
+      payload => {
+        if (payload.new.thread_id === threadId) {
+          scoreDisplay.textContent = 'Score: ' + payload.new.score;
+        }
       }
-    })
+    )
     .subscribe();
+
 </script>
 
 </body>
