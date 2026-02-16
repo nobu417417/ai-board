@@ -3,15 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <title>AIboard投票</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; padding: 30px; }
+    button { font-size: 24px; padding: 10px 20px; margin: 5px; }
+    #count { font-size: 24px; margin-left: 10px; }
+  </style>
 </head>
 <body>
   <h1>AIboard投票</h1>
   <button id="upvote">＋1</button>
   <button id="downvote">－1</button>
+  <span id="count">0</span>
 
   <script>
-    document.getElementById("upvote").onclick = () => alert("＋1押した");
-    document.getElementById("downvote").onclick = () => alert("－1押した");
+    // 1. Supabase初期化
+    const supabaseUrl = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
+    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = Supabase.createClient(supabaseUrl, supabaseKey);
+
+    const threadId = 'main-thread'; // スレッドID
+
+    const countEl = document.getElementById('count');
+
+    // 2. カウントを取得して表示
+    async function fetchCount() {
+      const { data, error } = await supabase
+        .from('votes')
+        .select('value')
+        .eq('thread_id', threadId);
+
+      if (error) { console.error(error); return; }
+
+      const total = data.reduce((sum, row) => sum + row.value, 0);
+      countEl.textContent = total;
+    }
+
+    fetchCount();
+
+    // 3. 投票処理
+    async function vote(value) {
+      const { data, error } = await supabase
+        .from('votes')
+        .insert([{ thread_id: threadId, value }]);
+
+      if (error) { console.error(error); return; }
+
+      fetchCount(); // 投票後に更新
+    }
+
+    document.getElementById('upvote').onclick = () => vote(1);
+    document.getElementById('downvote').onclick = () => vote(-1);
+
+    // 4. リアルタイム更新
+    supabase
+      .channel('realtime-votes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, payload => {
+        fetchCount();
+      })
+      .subscribe();
   </script>
 </body>
 </html>
