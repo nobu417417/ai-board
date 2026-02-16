@@ -18,7 +18,9 @@
 <button id="downvote">-1</button>
 
 <script>
+  // ---------------------------
   // Supabase プロジェクト情報を入力
+  // ---------------------------
   const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
   const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
 
@@ -51,7 +53,7 @@
   // 投票処理 +1/-1
   // --------------------------------
   async function vote(value) {
-    // 1. 現在の score を取得
+    // 現在の score を取得
     const { data, error } = await supabase
       .from('votes')
       .select('score')
@@ -59,26 +61,19 @@
       .limit(1)
       .maybeSingle();
 
-    if (error) {
-      console.error('Score取得エラー', error);
-      return;
-    }
+    if (error) { console.error('Score取得エラー', error); return; }
 
-    // 2. 新しいスコア計算
+    // 新しいスコア計算
     const newScore = (data?.score || 0) + value;
 
-    // 3. 更新
-    const { error: updateError } = await supabase
+    // score 更新（行がなければ INSERT ）
+    const { error: upsertError } = await supabase
       .from('votes')
-      .update({ score: newScore })
-      .eq('thread_id', threadId);
+      .upsert({ thread_id: threadId, score: newScore });
 
-    if (updateError) {
-      console.error('Score更新エラー', updateError);
-      return;
-    }
+    if (upsertError) console.error('Score更新エラー', upsertError);
 
-    // 4. 画面更新
+    // 画面更新
     scoreDisplay.textContent = 'Score: ' + newScore;
   }
 
